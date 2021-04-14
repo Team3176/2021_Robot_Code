@@ -1,0 +1,16 @@
+##########
+LIMELIGHT MOUNT SETTINGS
+Ball Recog Hole Position = 1th hole from front of plate
+Target Recog Hole Position =  4th hole from front of plate .... we think.  Needs verification/testing.
+##########
+
+30ft - 7.5ft    4500 Drum | 6380 Flywheel
+30ft - 7.5ft	30% Drum | 90% Flywheel
+20ft - 7.5ft	30% Drum | 70% Flywheel
+20ft 			62% Fly
+17ft			57% Fly
+7ft			57% Fly
+2ft			100% Fly Bounce Back
+100% Transfer
+40ft 90% Flywheel
+
