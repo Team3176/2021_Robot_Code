@@ -16,7 +16,7 @@ public class Slalom extends CommandBase {
 
     public Slalom() {
         addRequirements(drivetrain);
-        runTimeInput = SmartDashboard.getNumber("runTime", 0.5);
+        // runTimeInput = SmartDashboard.getNumber("runTime", 0.5);
     }
 
     @Override
@@ -32,14 +32,15 @@ public class Slalom extends CommandBase {
             drivetrain.drive(0.5, 0.0, 0.0);
         } else if((startTime + time1 + time2) > Timer.getFPGATimestamp()) {
             drivetrain.drive(0.0, -0.5, 0.0);
-        } else if((startTime + time1 + time2 + SmartDashboard.getNumber("runTime", runTimeInput)) > Timer.getFPGATimestamp()) {
-            drivetrain.drive(0.5, 0.0, 0.0);
+        // } else if((startTime + time1 + time2 + SmartDashboard.getNumber("runTime", runTimeInput)) > Timer.getFPGATimestamp()) {
+            // drivetrain.drive(0.5, 0.0, 0.0);
         }
     }
 
     @Override
     public boolean isFinished() {
-        return (startTime + time1 + time2 + SmartDashboard.getNumber("runTime", runTimeInput)) < Timer.getFPGATimestamp();
+        // return (startTime + time1 + time2 + SmartDashboard.getNumber("runTime", runTimeInput)) < Timer.getFPGATimestamp();
+        return true;
     }
 
     @Override

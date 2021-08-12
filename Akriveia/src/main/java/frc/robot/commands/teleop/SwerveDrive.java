@@ -4,7 +4,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.wpilibj2.command.CommandBase;
-
+import frc.robot.constants.DrivetrainConstants;
 import frc.robot.subsystems.Drivetrain;
 import frc.robot.subsystems.Drivetrain.coordType;
 import frc.robot.subsystems.Drivetrain.driveMode;
@@ -17,37 +17,34 @@ public class SwerveDrive extends CommandBase {
 
   private BooleanSupplier isFieldCentric;
   private BooleanSupplier isRobotCentric;
-  private BooleanSupplier isBackRobotCentric;
 
-  public SwerveDrive( DoubleSupplier forwardCommand, DoubleSupplier strafeCommand, DoubleSupplier spinCommand,
-                      BooleanSupplier isFieldCentric, BooleanSupplier isRobotCentric, BooleanSupplier isBackRobotCentric) {
+  public SwerveDrive( DoubleSupplier forwardCommand, DoubleSupplier strafeCommand, DoubleSupplier spinCommand) {
+ //                     BooleanSupplier isFieldCentric, BooleanSupplier isRobotCentric ) {
     this.forwardCommand = forwardCommand;
     this.strafeCommand = strafeCommand;
     this.spinCommand = spinCommand;
-    this.isFieldCentric = isFieldCentric;
-    this.isRobotCentric = isRobotCentric;
-    this.isBackRobotCentric = isBackRobotCentric;
+    //this.isFieldCentric = isFieldCentric;
+    //this.isRobotCentric = isRobotCentric;
     addRequirements(drivetrain);
   }
 
   @Override
   public void initialize() {
     drivetrain.setDriveMode(driveMode.DRIVE);
+    drivetrain.setSpinLock(false);
   }
 
   @Override
   public void execute() {
 
-    if(isFieldCentric.getAsBoolean()) {
-      drivetrain.setCoordType(coordType.FIELD_CENTRIC);
+    if(drivetrain.getCurrentCoordType() == coordType.FIELD_CENTRIC) {
+      //drivetrain.setCoordType(coordType.FIELD_CENTRIC);
+      drivetrain.setFieldCentricOffset();
     }
-    if(isRobotCentric.getAsBoolean()) {
-      drivetrain.setCoordType(coordType.ROBOT_CENTRIC);
-    }
-    if(isBackRobotCentric.getAsBoolean()) {
-      drivetrain.setCoordType(coordType.BACK_ROBOT_CENTRIC);
-    }
-    drivetrain.drive(forwardCommand.getAsDouble(), strafeCommand.getAsDouble(), spinCommand.getAsDouble());
+    //if(isRobotCentric.getAsBoolean()) {
+    //  drivetrain.setCoordType(coordType.ROBOT_CENTRIC);
+    //}
+    drivetrain.drive(forwardCommand.getAsDouble() * DrivetrainConstants.MAX_WHEEL_SPEED_FEET_PER_SECOND, strafeCommand.getAsDouble() * DrivetrainConstants.MAX_WHEEL_SPEED_FEET_PER_SECOND, spinCommand.getAsDouble()*10);
   }
 
   @Override

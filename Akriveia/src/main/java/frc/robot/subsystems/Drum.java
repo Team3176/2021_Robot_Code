@@ -6,6 +6,8 @@ import com.revrobotics.CANPIDController;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.ControlType;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.SlewRateLimiter;
 import edu.wpi.first.wpilibj.Timer;
 import frc.robot.constants.DrumConstants;
@@ -36,13 +38,21 @@ public class Drum extends SubsystemBase {
   private int direction = 1;
   private double shakeStartTime = -1;
   private double shakeIterations = 0;
+  public boolean drumStopMotorFlag = false;
+  private boolean oneTimeIRSwitch;
 
+  private DigitalInput idlerIrSensor = new DigitalInput(DrumConstants.IDLER_IRSENSOR_DIO_ID);
+  private DigitalInput backIrSensor = new DigitalInput(DrumConstants.BACKWALL_IRSENSOR_DIO_ID);
+  private boolean lastReading_idlerIrSensor, lastReading_backIrSensor;
+  private double timePt1_idlerIrSensor, timePt1_backIrSensor, durationLimit_idlerIrSensor, durationLimit_backIrSensor;
   private PowerManagement m_PowerManagement;
   private Timer time;
 
   String procTag;
 
-
+  // private DigitalInput lineBreakTransmitter;
+  // private DigitalInput lineBreakReciever;
+  // private boolean isBroken;
   /**
    * Initializes the Drum subsystem once at code deploy.
    * <p>
@@ -50,6 +60,9 @@ public class Drum extends SubsystemBase {
    */
 
   public Drum() {
+    // lineBreakReciever = new DigitalInput(1);
+    // lineBreakTransmitter = new DigitalInput(0);
+
     m_PowerManagement = PowerManagement.getInstance();
     drumMotor.restoreFactoryDefaults();
     drumPIDController = drumMotor.getPIDController();
@@ -62,6 +75,10 @@ public class Drum extends SubsystemBase {
     rateLimiter = new SlewRateLimiter(DrumConstants.kRampRate, 0);
 
     time = new Timer();
+    oneTimeIRSwitch = true;
+
+    durationLimit_idlerIrSensor = DrumConstants.DURATION_LIMIT_IDLER_IR_SENSOR_SECONDS;
+    durationLimit_backIrSensor = DrumConstants.DURATION_LIMIT_BACK_IR_SENSOR_SECONDS;
     
     /* Set PID constants */
 
@@ -72,6 +89,17 @@ public class Drum extends SubsystemBase {
     drumPIDController.setIZone(DrumConstants.kIZone);
     drumPIDController.setOutputRange(DrumConstants.kMinOutput, DrumConstants.kMaxOutput);    
   }
+
+  public void stopMotors() {
+     drumStopMotorFlag = true;
+    //drumPIDController.setReference(0, ControlType.kVelocity); 
+    drumMotor.set(0);
+  }
+
+  public boolean getDrumStopMotorFlag(){
+    return drumStopMotorFlag;
+  }
+  // public boolean isLineBroke() {return lineBreakReciever.get();}
 
   /**
    * Called one during each run of a nonzero spin speed method. This is to turn the rateLimiter back on at the Drum motor's current
@@ -95,8 +123,9 @@ public class Drum extends SubsystemBase {
    * Sets the Drum motor to whatever the index level is in the drumSPEEDS array.
    * @param level the index in the SPEEDS array that it is set to
    * @param direction the direction of the velocity, 1 = Fast, 0 = Slow, 2 = Same, Others = No Speed
-   * @see commands.teleop.DrumVelocitySlow
-   * @see commands.teleop.DrumVelocitySpeed
+    * @param direction  Determines if we are stepping up or down to the desired "speed level"
+   * @see DrumVelocityDown.teleop.DrumVelocitySlow
+   * @see DrumVelocityUp.teleop.DrumVelocitySpeed
    */
 
   public void pidVelCtrl_step4LevelsToDesiredSpeed(int level, int direction, String procTag) {
@@ -275,11 +304,11 @@ public class Drum extends SubsystemBase {
   }
 
   /**
-   * Sets the motor to -0.3 percent which is slow counter clockwise
+   * Sets the motor to -0.1 percent which is slow counter clockwise
    */
 
   public void CounterClockwise() {
-    drumMotor.set(-0.3);
+    drumMotor.set(-0.2);
   }
 
   /**
@@ -313,8 +342,107 @@ public class Drum extends SubsystemBase {
     return instance;
   }
 
+  public boolean getIdlerIrSensor() {
+    return (idlerIrSensor.get());
+  }
+
+  private void testIdlerIrSensorIsTrue() {
+    if (getIdlerIrSensor()) {
+      System.out.println("<----------- Drum.idlerIrSensor = TRUE ------------->");
+    }
+  }
+
+  private void testIdlerIrSensorIsFalse() {
+    if (getIdlerIrSensor()) {
+      System.out.println("<----------- Drum.idlerIrSensor = FALSE ------------->");
+    }
+  }
+  public boolean getBackIrSensor() {
+    return (backIrSensor.get());
+  }
+
+  public void setDrumStopMotorFlag(boolean c) {drumStopMotorFlag = c;}
+
+  private void testBackIrSensorIsTrue() {
+    if (getBackIrSensor()) {
+      System.out.println("<----------- Drum.backIrSensor = TRUE ------------->");
+    }
+  }
+
+  private void testBackIrSensorIsFalse() {
+    if (getBackIrSensor()) {
+      System.out.println("<----------- Drum.backIrSensor = FALSE ------------->");
+    }
+  }
+  public boolean getOneTimeIRSwitch(){
+    return oneTimeIRSwitch;
+    }
+  public boolean checkIdlerIrSensorForJam() {
+    double currentTime_idlerIrSensor = Timer.getFPGATimestamp();
+    if (getIdlerIrSensor() && lastReading_idlerIrSensor == true) { 
+      timePt1_idlerIrSensor = Timer.getFPGATimestamp();
+    }
+    lastReading_idlerIrSensor = getIdlerIrSensor();
+    //System.out.println("Drum Limit =" + (currentTime_idlerIrSensor - timePt1_idlerIrSensor));
+    //System.out.println("IdlerIrSensor"+ getIdlerIrSensor());
+    if (!getIdlerIrSensor() && (currentTime_idlerIrSensor - timePt1_idlerIrSensor > durationLimit_idlerIrSensor)) {
+      return true;
+    } else {return false;}
+  }
+  
+  public boolean checkBackIrSensorForJam() {
+    double currentTime_backIrSensor = Timer.getFPGATimestamp();
+    if (getBackIrSensor() && lastReading_backIrSensor == true) { 
+      timePt1_backIrSensor = Timer.getFPGATimestamp();
+    }
+    lastReading_backIrSensor = getBackIrSensor();
+    if(oneTimeIRSwitch){
+      if (!getBackIrSensor()){ //&& (currentTime_backIrSensor - timePt1_backIrSensor > durationLimit_backIrSensor)) {
+        oneTimeIRSwitch = false;
+        return true;
+      } 
+      else {
+        oneTimeIRSwitch = false;
+        return false;
+      }
+      
+  }
+    else if(!oneTimeIRSwitch){
+      if (!getBackIrSensor()){ //&& (currentTime_backIrSensor - timePt1_backIrSensor > durationLimit_backIrSensor)) {
+        oneTimeIRSwitch = false;
+        return true;
+      } 
+      else {
+        oneTimeIRSwitch = false;
+        return false;
+      }
+    }
+    return false;
+}
+
+  public boolean 
+  isThereAJam() {
+    if (checkIdlerIrSensorForJam() || checkBackIrSensorForJam()) {
+      //System.out.println("There is a jam");
+      return true;
+
+    } else {
+     // System.out.println("There is not a jam");
+      return false;
+    }
+  }
+
+  public void actIfJamPresent() {
+    if (isThereAJam()) {
+      //System.out.println("Motors should be stopping");
+      stopMotors();
+    }
+  }
+ 
+
   @Override
   public void periodic() {
+    //actIfJamPresent();
     //checkForCurrentSpike();
   }
 }

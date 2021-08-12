@@ -27,5 +27,7 @@ public class SwerveDefense extends CommandBase {
   public boolean isFinished() { return false; }
 
   @Override
-  public void end(boolean interrupted) {  }
+  public void end(boolean interrupted) { 
+    drivetrain.setDriveMode(driveMode.DRIVE);
+   }
 }

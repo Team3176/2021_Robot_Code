@@ -5,39 +5,24 @@
 package frc.robot.commands.teleop;
 
 import edu.wpi.first.wpilibj2.command.CommandBase;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import frc.robot.subsystems.Drum;
+import frc.robot.commands.teleop.*;
+import frc.robot.commands.auton.*;
 
 /**
  * Shakes the Drum rapidly to dislodge stuck Power Cells.
  * @author Jared Brown
  */
-public class DrumAgitate extends CommandBase {
+public class DrumAgitate extends SequentialCommandGroup {
   /** Creates a new DrumAgitate. */
-  Drum m_Drum = Drum.getInstance();
-  private boolean ranThroughSequence;
   
   public DrumAgitate() {
     // Use addRequirements() here to declare subsystem dependencies.
-    addRequirements(m_Drum);
+    addCommands(
+      new DrumAgitateStart(),
+      new DrumAgitateStop()
+    );
   }
 
-  @Override
-  public void initialize() {
-    // System.out.println("DrumAgitate.initialize executed. ############################################################");
-  }
-
-  @Override
-  public void execute() {
-    ranThroughSequence = m_Drum.shakeDrum();
-  }
-
-  @Override
-  public void end(boolean interrupted) {
-    m_Drum.resetShakeVariables();
-  }
-
-  @Override
-  public boolean isFinished() {
-    return ranThroughSequence;
-  }
 }

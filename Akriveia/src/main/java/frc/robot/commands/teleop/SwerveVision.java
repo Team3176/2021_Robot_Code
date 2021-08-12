@@ -4,7 +4,7 @@ package frc.robot.commands.teleop;
 import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.wpilibj2.command.CommandBase;
-import frc.robot.VisionClient;
+import frc.robot.subsystems.Vision;
 import frc.robot.subsystems.Drivetrain;
 import frc.robot.subsystems.Drivetrain.driveMode;
 
@@ -17,7 +17,7 @@ well, we could drive across the field while staying locked onto the target with 
 */
 
 public class SwerveVision extends CommandBase {
-  private VisionClient visionClient = VisionClient.getInstance();
+  private Vision m_Vision = Vision.getInstance();
   private Drivetrain drivetrain = Drivetrain.getInstance();
   private DoubleSupplier forwardCommand;
   private DoubleSupplier strafeCommand;
@@ -40,7 +40,7 @@ public class SwerveVision extends CommandBase {
 
   @Override
   public void execute() {
-    spinOutput = spinPID.returnOutput(drivetrain.getGyroAngle(), drivetrain.getGyroAngle() + visionClient.getBallDegrees());
+    spinOutput = spinPID.returnOutput(drivetrain.getGyroAngle(), drivetrain.getGyroAngle() + m_Vision.getBallDegrees());
     drivetrain.drive(forwardCommand.getAsDouble(), strafeCommand.getAsDouble(), spinOutput);
   }
 
