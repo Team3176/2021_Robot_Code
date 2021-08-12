@@ -20,6 +20,7 @@ public class SwerveLockedSpin extends InstantCommand {
 
   @Override
   public void initialize() {
+    
     drivetrain.setSpinLockAngle(); //Rearragned because the error would be big currAngle - 0 as error
     drivetrain.toggleSpinLock();
   }

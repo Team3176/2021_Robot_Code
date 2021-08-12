@@ -5,18 +5,18 @@
 package frc.robot.commands.teleop;
 
 import edu.wpi.first.wpilibj2.command.InstantCommand;
-import frc.robot.VisionClient;
+import frc.robot.subsystems.Vision;
 
 // we are in the eighth hole from the front on the LL base plate
 
 public class AtlasOff extends InstantCommand{
   
-  private VisionClient m_VisionClient = VisionClient.getInstance();
+  private Vision m_Vision = Vision.getInstance();
 
   public AtlasOff(){}
 
   @Override
   public void initialize(){
-    m_VisionClient.setAtlasOn(false);  
+    m_Vision.setAtlasOn(false);  
   }
 }

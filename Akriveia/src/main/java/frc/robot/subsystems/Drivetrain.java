@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix.motorcontrol.ControlMode;
 //TODO: Recognize the red dependecys because seeing red is annoying
 import com.ctre.phoenix.motorcontrol.can.TalonFX;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
@@ -28,8 +29,8 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.constants.DrivetrainConstants;
 import frc.robot.Controller;
 // import frc.robot.Controller;
-// import frc.robot.VisionClient;
-import frc.robot.VisionClient;
+// import frc.robot.subsystems.Vision;
+import frc.robot.subsystems.Vision;
 
 import java.util.ArrayList;
 
@@ -38,7 +39,7 @@ import frc.robot.util.PIDLoop;
 public class Drivetrain extends SubsystemBase {
   private static Drivetrain instance = new Drivetrain();
   private Controller controller = Controller.getInstance();
-  private VisionClient visionClient = VisionClient.getInstance();
+  private Vision m_Vision = Vision.getInstance();
 
   private SwerveDriveOdometry odometry;
 
@@ -85,6 +86,7 @@ public class Drivetrain extends SubsystemBase {
   private double forwardCommand;
   private double strafeCommand;
   private double spinCommand;
+  private double visionSpinCommandCorrection;
 
   private double spinLockAngle;
   private boolean isSpinLocked = false;
@@ -95,7 +97,7 @@ public class Drivetrain extends SubsystemBase {
   
   public Rotation2d rotation = new Rotation2d();
 
-  private double angleOffset = 0.0;
+  private double fieldCentricOffset = 0.0;
 
   private int arraytrack;
   double[] angleHist = { 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -113,6 +115,8 @@ public class Drivetrain extends SubsystemBase {
   private SwervePod podFL;
   private SwervePod podBL;
   private SwervePod podBR;
+
+  private double lockP, lockI, lockD;
 
   private Drivetrain() {
     // Instantiate pods
@@ -153,7 +157,7 @@ public class Drivetrain extends SubsystemBase {
     // 0 or -361. gyro.getRotation2d() uses NWU Axis Convention
 
     //Is continuous. ie 360+1=361 not m0 or -361. getNavxAngle_asRotation2d() should be same Axis Convention as Teleop, I believe.
-    odometry = new SwerveDriveOdometry(DrivetrainConstants.DRIVE_KINEMATICS, getNavxAngle_inRadians_asRotation2d()); 
+    //odometry = new SwerveDriveOdometry(DrivetrainConstants.DRIVE_KINEMATICS, getNavxAngle_inRadians_asRotation2d()); 
 
     // SmartDashboard.putNumber("currentAngle", this.currentAngle);
 
@@ -176,8 +180,8 @@ public class Drivetrain extends SubsystemBase {
     this.strafeCommand = 0.0;
     this.spinCommand = 0.0;
 
-    spinLockPID = new PIDLoop(0.03, 0.0, 0.0);
-    //spinLockAngle = getNavxAngle_inRadians();
+    spinLockPID = new PIDLoop(0.15, 0.0, 0.0);
+    // spinLockAngle = getNavxAngle_inRadians();
     // spinLockPID = new PIDController(0.3, 0.0, 0.0, 0.0);
   }
 
@@ -198,14 +202,15 @@ public class Drivetrain extends SubsystemBase {
 
   /**
    * 
-   * @param forwardCommand range of {-1,1}
-   * @param strafeCommand  range of {-1, 1}
-   * @param spinCommand    range of {-1, 1}
+   * @param forwardCommand feet per second
+   * @param strafeCommand  feet per second
+   * @param spinCommand    feet per second
    */
   public void drive(double forwardCommand, double strafeCommand, double spinCommand) {
     this.forwardCommand = forwardCommand;
-    this.strafeCommand = strafeCommand;
-    this.spinCommand = spinCommand;
+    this.strafeCommand = strafeCommand;  // TODO: The y is inverted because it is backwards for some reason, why?
+    this.spinCommand = spinCommand + visionSpinCommandCorrection;
+    // System.out.println("Forward Command" + forwardCommand);
 
     // this.forwardCommand = SmartDashboard.getNumber("forwardCommand", 0);
     // this.strafeCommand = SmartDashboard.getNumber("strafeCommand", 0);
@@ -221,13 +226,13 @@ public class Drivetrain extends SubsystemBase {
     // SmartDashboard.putString("Drive currentCoordType",
     // currentCoordType.toString());
 
-    if (! isTurboOn) {
+    if (!isTurboOn) {
       this.forwardCommand *= DrivetrainConstants.NON_TURBO_PERCENT_OUT_CAP;
       this.strafeCommand *= DrivetrainConstants.NON_TURBO_PERCENT_OUT_CAP;
       this.spinCommand *= DrivetrainConstants.NON_TURBO_PERCENT_OUT_CAP;
     }
 
-    if (this.isSpinLocked) {
+    if (this.isSpinLocked && !isOrbiting()) {
       this.spinCommand = -spinLockPID.returnOutput(getNavxAngle_inRadians(), spinLockAngle);
       // this.spinCommand = spinLockPID.calculate(getNavxAngle(), spinLockAngle);
 
@@ -238,6 +243,11 @@ public class Drivetrain extends SubsystemBase {
           + this.strafeCommand * Math.sin(this.currentAngle));
       this.strafeCommand = (-this.forwardCommand * Math.sin(this.currentAngle)
           + this.strafeCommand * Math.cos(this.currentAngle));
+      //TEST BELOW TO SEE IF FIXES RC/FC ALIGNMENT
+      //final double temp = (this.forwardCommand * Math.sin(this.currentAngle)
+      //    + this.strafeCommand * Math.cos(this.currentAngle));
+      //this.strafeCommand = (-this.forwardCommand * Math.cos(this.currentAngle)
+      //    + this.strafeCommand * Math.sin(this.currentAngle));
       this.forwardCommand = temp;
     }
     // TODO: Find out why we multiply by 0.75
@@ -246,27 +256,26 @@ public class Drivetrain extends SubsystemBase {
       this.forwardCommand *= 1; // 0.75;
       this.spinCommand *= 1; // 0.75;
     }
-    if (currentCoordType == coordType.BACK_ROBOT_CENTRIC) {
-      this.strafeCommand *= -1;
-      this.forwardCommand *= -1;
-    }
-    // SmartDashboard.putNumber("this.forwardComDriveTrain.drive",
+   
+    // SmartDashboard.putNumber("this.forwardCom_Drivetrain.drive",
     // this.forwardCommand);
-    // SmartDashboard.putNumber("this.strafeComDriveTrain.drive",
+    // SmartDashboard.putNumber("this.strafeCom_Drivetrain.drive",
     // this.strafeCommand);
-    // SmartDashboard.putNumber("this.spinComDriveTrain.drive", this.spinCommand);
+    // TODO: Find out why this putNumber statement is making the spinLock work
+    // SmartDashboard.putNumber("this.spinCom_Drivetrain.drive", this.spinCommand);
     calculateNSetPodPositions(this.forwardCommand, this.strafeCommand, this.spinCommand);
 
-    SmartDashboard.putBoolean("isOrbiting", currentDriveMode == driveMode.ORBIT);
-    SmartDashboard.putBoolean("isRobotCentric", currentCoordType == coordType.ROBOT_CENTRIC);
+    // SmartDashboard.putBoolean("isOrbiting", currentDriveMode == driveMode.ORBIT);
+    // SmartDashboard.putBoolean("isRobotCentric", currentCoordType == coordType.ROBOT_CENTRIC);
     SmartDashboard.putBoolean("isFieldCentric", currentCoordType == coordType.FIELD_CENTRIC);
+    //  System.out.println("CURRENTCOORDTYPE = " + currentCoordType);
   }
 
   /**
    * 
-   * @param forwardCommand range of {-1,1} coming from translation stick Y-Axis
-   * @param strafeCommand  range of {-1,1} coming from translation stick X-Axis
-   * @param spinCommand    range of {}
+   * @param forwardCommand feet per second
+   * @param strafeCommand  feet per second
+   * @param spinCommand    feet per second
    */
   private void calculateNSetPodPositions(double forwardCommand, double strafeCommand, double spinCommand) {
 
@@ -286,7 +295,7 @@ public class Drivetrain extends SubsystemBase {
       // ###########################################################
       double a = strafeCommand - spinCommand * getRadius("A");
       double b = strafeCommand + spinCommand * getRadius("B");
-      ;
+      
       double c = forwardCommand - spinCommand * getRadius("C");
       double d = forwardCommand + spinCommand * getRadius("D");
 
@@ -343,11 +352,11 @@ public class Drivetrain extends SubsystemBase {
         // podDrive[idx]);
       }
 
-      // Find the highest pod speed then normalize if a pod is exceeding our max speed
+      // Find the highest pod speed then normalize if a pod is exceeding our max speed by scaling down all the speeds
       relMaxSpeed = Math.max(Math.max(podDrive[0], podDrive[1]), Math.max(podDrive[2], podDrive[3]));
-      if (relMaxSpeed > maxSpeed_InchesPerSec) {
+      if (relMaxSpeed > DrivetrainConstants.MAX_WHEEL_SPEED_FEET_PER_SECOND) {
         for (int idx = 0; idx < pods.size(); idx++) {
-          podDrive[idx] /= relMaxSpeed / maxSpeed_InchesPerSec;
+          podDrive[idx] /= relMaxSpeed / DrivetrainConstants.MAX_WHEEL_SPEED_FEET_PER_SECOND;
         }
       }
 
@@ -362,18 +371,25 @@ public class Drivetrain extends SubsystemBase {
       }
       // pods.get(3).set(0.1,1.57);
 
-      // } else { // Enter defenseive position
-      // double smallNum = Math.pow(10, -15);
-      // pods.get(0).set(smallNum, -1.0 * Math.PI / 4.0);
-      // pods.get(1).set(smallNum, 1.0 * Math.PI / 4.0);
-      // pods.get(2).set(smallNum, 3.0 * Math.PI / 4.0);
-      // pods.get(3).set(smallNum, -3.0 * Math.PI / 4.0);
 
-      SmartDashboard.putBoolean("orbiting", isOrbiting());
+      //SmartDashboard.putBoolean("orbiting", isOrbiting());
+    } else if (currentDriveMode == driveMode.DEFENSE) { // Enter defenseive position
+      double smallNum = Math.pow(10, -15);
+      pods.get(0).set(smallNum, -1.0 * Math.PI / 4.0);
+      pods.get(1).set(smallNum, 1.0 * Math.PI / 4.0);
+      pods.get(2).set(smallNum, 3.0 * Math.PI / 4.0);
+      pods.get(3).set(smallNum, -3.0 * Math.PI / 4.0);
     }
   }
 
-  private double getNavxAngle_inDegrees() {
+  public void stopMotors() {
+    for (int idx = 0; idx < (pods.size()); idx++) {
+      driveControllers[idx].set(ControlMode.PercentOutput, 0);
+      spinControllers[idx].set(ControlMode.PercentOutput, 0);
+    }
+
+  }
+  public double getNavxAngle_inDegrees() {
     return (gyro.getAngle() + DrivetrainConstants.GYRO_COORDSYS_ROTATIONAL_OFFSET + this.gyroOffset);
   }
 
@@ -460,6 +476,26 @@ public class Drivetrain extends SubsystemBase {
     this.isSpinLocked = !this.isSpinLocked;
   }
 
+  public void setSpinLock(boolean set) {
+    isSpinLocked = set;
+  }
+
+  public double getFieldCentricOffset() {
+    return fieldCentricOffset;
+  }
+
+  public void setFieldCentricOffset() {
+    fieldCentricOffset = getNavxAngle_inRadians();
+    // SmartDashboard.putNumber("value in Drivetrain", getNavxAngle_inRadians());
+  }
+
+  public void setCoordTypeToFieldCentric() {
+    this.currentCoordType = coordType.FIELD_CENTRIC;
+  }
+
+  public void setCoordTypeToRobotCentric() {
+    this.currentCoordType = coordType.ROBOT_CENTRIC;
+  }
   /**
    * Sets Turbo mode on or off
    * @param onOrOff Passing a value of true sets Turbo on (ie isTurboOn = true), and passing value of false sets Turbo off (ie isTurboOn = false)
@@ -488,7 +524,7 @@ public class Drivetrain extends SubsystemBase {
    /** 
     * Calculates average angle value based on rolling window of last five angle measurements
     */
-  private void calcAngleAvgRollingWindow() {
+  public void calcAngleAvgRollingWindow() {
     this.angleHist[this.arraytrack] = this.currentAngle;
     angleAvgRollingWindow = (this.angleHist[0] + this.angleHist[1] + this.angleHist[2] + this.angleHist[3]
         + this.angleHist[4]) / 5;
@@ -498,13 +534,18 @@ public class Drivetrain extends SubsystemBase {
     return this.angleAvgRollingWindow;
   }
 
+  public double getCurrentAngle() {
+    updateNavxAngle();
+    return this.currentAngle;
+  }
+
   public ChassisSpeeds getChassisSpeed() {
     return DrivetrainConstants.DRIVE_KINEMATICS.toChassisSpeeds(podFR.getState(), podFL.getState(), podBL.getState(), podBR.getState());
   }
 
   public Pose2d getCurrentPose() {
-    SmartDashboard.putNumber("odometry X", odometry.getPoseMeters().getX());
-    SmartDashboard.putNumber("odometry Y", odometry.getPoseMeters().getY());
+    // SmartDashboard.putNumber("odometry X", odometry.getPoseMeters().getX());
+    // SmartDashboard.putNumber("odometry Y", odometry.getPoseMeters().getY());
     return odometry.getPoseMeters() ; //Does this work?
   }
 
@@ -543,17 +584,21 @@ public class Drivetrain extends SubsystemBase {
     SmartDashboard.putNumber("gyro.getNavxAngle_inRadians()", (getNavxAngle_inRadians()));
     */
 
-    odometry.update(
-        new Rotation2d(getHeading()),
-        podFR.getState(),
-        podFL.getState(),
-        podBL.getState(),
-        podBR.getState());
+    //odometry.update(
+    //    new Rotation2d(getHeading()),
+    //    podFR.getState(),
+    //    podFL.getState(),
+    //    podBL.getState(),
+    //    podBR.getState());
+  }
+
+  public void insertSpinCommand(double spinCorrection) {
+    this.visionSpinCommandCorrection = spinCorrection;
   }
 
   public double getHeading() {
-    SmartDashboard.putNumber("Drivetrain.getHeading_as_gyro.getRotation2d.getDegrees()", gyro.getRotation2d().getDegrees());
-    SmartDashboard.putNumber("Drivetrain.getHeading_as_getNavxAngle_inDegrees()", getNavxAngle_inDegrees());
+    // SmartDashboard.putNumber("Drivetrain.getHeading_as_gyro.getRotation2d.getDegrees()", gyro.getRotation2d().getDegrees());
+    // SmartDashboard.putNumber("Drivetrain.getHeading_as_getNavxAngle_inDegrees()", getNavxAngle_inDegrees());
     //return gyro.getRotation2d().getRadians() ; //+ Math.PI/2;
     return getNavxAngle_inRadians() ; //+ Math.PI/2;
   }

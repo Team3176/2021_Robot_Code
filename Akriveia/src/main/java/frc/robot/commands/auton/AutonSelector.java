@@ -9,24 +9,25 @@ import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.constants.VisionConstants;
 import frc.robot.subsystems.Drivetrain;
+import frc.robot.subsystems.Vision;
 import frc.robot.*;
 
 public class AutonSelector extends CommandBase{
-  private VisionClient mVisionClient = VisionClient.getInstance();
-  private Drivetrain mDrivetrain = Drivetrain.getInstance();
+  private Vision m_Vision = Vision.getInstance();
+  private Drivetrain m_Drivetrain = Drivetrain.getInstance();
   private CommandScheduler commandScheduler = CommandScheduler.getInstance();
 
   private double angle;
 
   public AutonSelector(){
-    addRequirements(mDrivetrain);
+    addRequirements(m_Drivetrain);
   }
 
   // Called when the command is initially scheduled.
   @Override
   public void initialize(){
-    mVisionClient.controlLoopBallRecog();
-    angle = (mVisionClient.hasTarget == 1) ? mVisionClient.ballAngle * -VisionConstants.DEG2RAD : -999;
+    m_Vision.controlLoopBallRecog();
+    angle = (m_Vision.hasTarget == 1) ? m_Vision.ballAngle * -VisionConstants.DEG2RAD : -999;
   }
 
   /**
@@ -46,26 +47,26 @@ public class AutonSelector extends CommandBase{
   public void execute(){
     commandScheduler.schedule(new IntakeDropViaSpinning());
 
-    SmartDashboard.putNumber("Received Angle (rad)", angle);
+    // SmartDashboard.putNumber("Received Angle (rad)", angle);
     if(angle == -999){
       // print out an error message
-      SmartDashboard.putString("Path", "UNKNOWN");
+      // SmartDashboard.putString("Path", "UNKNOWN");
     } else if(angle < -.29){
       // A - blue
-      SmartDashboard.putString("Path", "A - blue");
-      mDrivetrain.drive(Math.cos(-.3805063771), Math.sin(-.3805063771), 0);
+      // SmartDashboard.putString("Path", "A - blue");
+      m_Drivetrain.drive(Math.cos(-.3805063771), Math.sin(-.3805063771), 0);
     } else if(angle < -.08){
       // B - blue
-      SmartDashboard.putString("Path", "B - blue");
-      mDrivetrain.drive(Math.cos(-.197395598), Math.sin(-.197395598), 0);
+      // SmartDashboard.putString("Path", "B - blue");
+      m_Drivetrain.drive(Math.cos(-.197395598), Math.sin(-.197395598), 0);
     } else if(angle < .15){
       // A - red
-      SmartDashboard.putString("Path", "A - red");
-      mDrivetrain.drive(Math.cos(0), Math.sin(0), 0);
+      // SmartDashboard.putString("Path", "A - red");
+      m_Drivetrain.drive(Math.cos(0), Math.sin(0), 0);
     } else if(angle < .52){
       // B - red
-      SmartDashboard.putString("Path", "B - red");
-      mDrivetrain.drive(Math.cos(.463647609), Math.sin(.463647409), 0);
+      // SmartDashboard.putString("Path", "B - red");
+      m_Drivetrain.drive(Math.cos(.463647609), Math.sin(.463647409), 0);
     }
   }
 

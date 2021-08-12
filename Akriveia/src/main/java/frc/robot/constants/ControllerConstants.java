@@ -10,7 +10,7 @@ public class ControllerConstants {
     public static final double SLOW_DRIVE_MULT = 0.5;
 
     // Constants
-    public static int FORWARD__AXIS_INVERSION = (MasterConstants.is2021Bot) ?  1 : -1;
-    public static int STRAFE_AXIS_INVERSION = (MasterConstants.is2021Bot) ?  -1 : 1;
+    public static int FORWARD__AXIS_INVERSION = (MasterConstants.is2021Bot) ?  -1 : -1;
+    public static int STRAFE_AXIS_INVERSION = (MasterConstants.is2021Bot) ?  1 : 1;
     public static int SPIN_AXIS_INVERSION = (MasterConstants.is2021Bot) ?  -1 : 1;
 }

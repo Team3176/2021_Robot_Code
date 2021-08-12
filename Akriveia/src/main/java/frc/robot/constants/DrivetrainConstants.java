@@ -55,7 +55,7 @@ public class DrivetrainConstants {
     
     public static final double MAX_ROT_ACCELERATION_RADIANS_PER_SECOND_SQUARED = 1; // rad/s*s
 
-    public static final double NON_TURBO_PERCENT_OUT_CAP = 0.5;
+    public static final double NON_TURBO_PERCENT_OUT_CAP = /*0.5*/1; //TODO: CHANGE BACK and fix for AUTON
 
     //public static final double LENGTH_CENTER_TO_CENTER = 23.5;
     //public static final double WIDTH_CENTER_TO_CENTER = 23.5;
@@ -93,7 +93,7 @@ public class DrivetrainConstants {
 
      // Below line contains offset needed to rotate raw navx angle output such that +x=fore and +y=port
     public static final double GYRO_COORDSYS_ROTATIONAL_OFFSET_2019 = 0;/*Units.radiansToDegrees(Math.PI / 2); */  // Currently equivalent to +90 Degrees 
-    public static final double GYRO_COORDSYS_ROTATIONAL_OFFSET_2021 = -90;/*Units.radiansToDegrees(Math.PI / 2); */  // Currently equivalent to +90 Degrees 
+    public static final double GYRO_COORDSYS_ROTATIONAL_OFFSET_2021 =90; //-90;/*Units.radiansToDegrees(Math.PI / 2); */  // Currently equivalent to +90 Degrees 
     public static final double GYRO_COORDSYS_ROTATIONAL_OFFSET = (MasterConstants.is2021Bot) ? GYRO_COORDSYS_ROTATIONAL_OFFSET_2021 : GYRO_COORDSYS_ROTATIONAL_OFFSET_2019;
 
     public static final double[] AUTON_THETA_CONTROLLER_PIDF = { 3.0 /*kP*/, 0.0 /*kI*/, 0.0 /*kD*/, 0.0 /*kF*/};
